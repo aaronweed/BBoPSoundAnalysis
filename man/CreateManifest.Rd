@@ -8,10 +8,11 @@ CreateManifest(
   input_dir,
   output_dir,
   year = as.integer(format(Sys.Date(), "\%Y")),
-  area_pre = "",
+  location = "",
   technician = "",
   recorderType = "SwiftOne",
-  output_prefix = "soundManifest_"
+  output_prefix = "soundManifest_",
+  export = c("csv", "object")
 )
 }
 \arguments{
@@ -21,13 +22,15 @@ CreateManifest(
 
 \item{year}{Integer. Year of recording (default = current year).}
 
-\item{area_pre}{Character. Area/site prefix (default = `""`).}
+\item{location}{Character. Area, site or prefix (default = `""`).}
 
 \item{technician}{Character. Name/ID of technician.}
 
 \item{recorderType}{Character. Recorder type (default = `"SwiftOne"`).}
 
 \item{output_prefix}{Character. Prefix for the output file (default = `"soundManifest_"`).}
+
+\item{export}{Select whether to export as \code{csv} file in your output_dir or to the global environment \code{object}.}
 }
 \value{
 A data frame with one row per sound file and the following columns:
@@ -52,7 +55,7 @@ CreateManifest(
   input_dir = "G:/HB",
   output_dir = "C:/output",
   year = 2023,
-  area_pre = "NPS",
+  location = "NPS",
   technician = "PoojaP"
 )
 head(manifest)

@@ -13,10 +13,11 @@
 #' @param input_dir Character. Path to the directory containing `.flac` files.
 #' @param output_dir Character. Path where the manifest CSV will be saved.
 #' @param year Integer. Year of recording (default = current year).
-#' @param area_pre Character. Area/site prefix (default = `""`).
+#' @param location Character. Area, site or prefix (default = `""`).
 #' @param technician Character. Name/ID of technician.
 #' @param recorderType Character. Recorder type (default = `"SwiftOne"`).
 #' @param output_prefix Character. Prefix for the output file (default = `"soundManifest_"`).
+#' @param export Select whether to export as \code{csv} file in your output_dir or to the global environment \code{object}.
 #'
 #' @return A data frame with one row per sound file and the following columns:
 #' \itemize{
@@ -37,34 +38,34 @@
 #'   input_dir = "G:/HB",
 #'   output_dir = "C:/output",
 #'   year = 2023,
-#'   area_pre = "NPS",
+#'   location = "NPS",
 #'   technician = "PoojaP"
 #' )
 #' head(manifest)
 #' }
 #'
 #' @export
-#....................................
+
 
 CreateManifest <- function(input_dir,
                            output_dir,
                            year = as.integer(format(Sys.Date(), "%Y")),
-                           area_pre = "",
+                           location = "",
                            technician = "",
                            recorderType = "SwiftOne",
-                           output_prefix = "soundManifest_") {
+                           output_prefix = "soundManifest_", 
+                           export = c("csv", "object")) {
 
   # read exif metadata
   filePattern <- "\\.flac$"
 
-  cli::cli_progress_bar("Reading EXIF data from files ", total = nFiles - 1)
+  cli::cli_progress_bar("Reading EXIF data from files ")
 
   a <- exifr::read_exif(
     list.files(input_dir, recursive = TRUE,
                pattern = filePattern, full.names = TRUE,
-               ignore.case = TRUE)
-  )
-  cli::cli_progress_update(force=TRUE)
+               ignore.case = TRUE))
+  cli::cli_progress_update()
 
 
   file_basename <- a$FileName
@@ -97,10 +98,9 @@ CreateManifest <- function(input_dir,
   df <- tibble::tibble(names = stringr::str_sub(file_basename, 1, -21)) |>
     dplyr::mutate(group = stringr::str_sub(names, 1, 4),
                   plot = stringr::str_sub(names, 5, 8),
-                  area = area_pre)
+                  area = location)
 
   # create relative dirs & md5 checksums
-  cli::cli_progress_bar("Computing realtive directories and MD5 checksums", total = nFiles)
 
   for (f in seq_len(nFiles)) {
 
@@ -112,9 +112,10 @@ CreateManifest <- function(input_dir,
 
     # ensure valid range
     if (start <= stop) {
-      ds <- substr(full, start, stop)
-    } else {
       ds <- substr(input_dir, 3, nchar(input_dir))   # file is directly in input_dir
+    } else {
+      
+      ds <- substr(full, start, stop)
     }
 
     # normalize: remove trailing slash if present
@@ -124,9 +125,7 @@ CreateManifest <- function(input_dir,
 
     MD5_checksum[f] <- digest::digest(file(full, "rb"), algo = "md5")
 
-    cli::cli_progress_update()
   }
-
 
   # check for subsequent file1
 
@@ -165,7 +164,7 @@ CreateManifest <- function(input_dir,
                     "year","technician","date.mmdd","startTime.hhmm",
                     "startTime.Excel","startTime.yyyymmddhhmm","fileLength.min","MD5_checksum")
 
-  b1 <- data.frame(setNames(list(
+  manifest <- data.frame(setNames(list(
     directoryShort, file_basename, subsequent.file1_basename, subsequent.file2_basename,
     FileSize.MB, FileType, recorderType, df$area, df$group, df$plot,
     plot.alias, recorder, recorderAlias, extraAttrib1, extraAttrib2,
@@ -173,8 +172,15 @@ CreateManifest <- function(input_dir,
     startTime.yyyymmddhhmm, fileLength.min, MD5_checksum
   ), column_names))
 
-  # save output
-  outputFile <- file.path(output_dir, paste0(output_prefix, year[1], ".csv"))
-  utils::write.csv(b1, outputFile, row.names = FALSE)
+  
+  if (export == "csv") { # save output
+    outputFile <- file.path(output_dir, paste0(output_prefix, year[1], ".csv"))
+    utils::write.csv(manifest, outputFile, row.names = FALSE)
+    return(invisible(manifest)) 
+    } 
+  
+  if (export == "object") { return(b1) # returned to global environment if user assigns it }
+    
+  }
 
 }

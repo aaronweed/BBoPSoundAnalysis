@@ -1,12 +1,16 @@
-Package: SoundAnalysis
+Package: BBoPSoundAnalysis
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Processing sound file data
 Version: 0.1.0
 Authors@R: c(
     person(
-      "Jane", "Doe",
-      email = "jane@example.com",
+      "Aaron", "Weed",
+      email = "Aaron_Weed@nps.gov",
       role = c("aut", "cre")
+    ), person(
+      "Matt", "Ayres",
+      email = "Mattew.P.Ayres@dartmouth.edu",
+      role = ("ctb")
     )
   )
 Description: More about what it does (maybe more than one line).
@@ -15,3 +19,12 @@ License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
+Imports:
+    av, 
+    zoo, 
+    ggplot2, 
+    utils, 
+    cli, 
+    future.apply, 
+    dplyr, 
+    tools
