@@ -1,30 +1,36 @@
 Package: BBoPSoundAnalysis
 Type: Package
-Title: Processing sound file data
+Title: Tools for Processing and Summarizing Sound File Data
 Version: 0.1.0
 Authors@R: c(
     person(
-      "Aaron", "Weed",
+      given = "Aaron",
+      family = "Weed",
       email = "Aaron_Weed@nps.gov",
       role = c("aut", "cre")
-    ), person(
-      "Matt", "Ayres",
-      email = "Mattew.P.Ayres@dartmouth.edu",
-      role = ("ctb")
-    )
-  )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+    ),
+    person(
+      given = "Matt",
+      family = "Ayres",
+      email = "Matthew.P.Ayres@dartmouth.edu",
+      role = "ctb"
+    ))
+Description: Functions to create manifests of sound files, summarize audio 
+    recordings within a directory, and compute minute-scale background 
+    sound energy. Designed to support efficient processing of long-duration 
+    acoustic datasets.
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
 Imports:
-    av, 
-    zoo, 
-    ggplot2, 
-    utils, 
-    cli, 
-    future.apply, 
-    dplyr, 
-    tools
+    av,
+    zoo,
+    ggplot2,
+    utils,
+    cli,
+    future.apply,
+    dplyr,
+    tools, 
+    tuneR,
+    openxlsx

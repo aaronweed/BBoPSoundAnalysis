@@ -12,7 +12,7 @@ MakeSummaryTables(inFile, output_dir, workpath_root)
 \item{workpath_root}{Directory where summary PNGs and the combined PDF
 will be written.}
 
-\item{df1}{A data frame containing the initial sound manifest, including
+\item{df1}{A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
 at least the columns \code{fileLength.min}, \code{startTime.hhmm},
 \code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.}
 }
@@ -27,7 +27,7 @@ Invisibly returns a list with components:
   }
 }
 \description{
-This high‑level function performs a multi‑stage cleaning, filtering,
+This function performs a multi‑stage cleaning, filtering,
 and summarization of sound manifest data. It removes anomalous recordings,
 filters based on duration and start‑time frequency, writes the cleaned
 manifest to an Excel file, and generates summary tables and visual

@@ -10,7 +10,7 @@
 #' @description This function scans a directory of .flac sound files and creates a manifest with metadata including file size, duration, time stamps (parsed from file
 #' names), plot/group identifiers, and MD5 checksums. It assumes a file naming convention where: Date-time stamp starts 20 characters from the end of the filename. Group ID = first 4 characters of the filename. Plot ID = characters 5–8 of the filename.Files are in chronological order.
 #'
-#' @param input_dir Character. Path to the directory containing `.flac` files.
+#' @param input_dir Character. Path to the directory containing `.flac` files named as SITEID_YYYYMMDD_HHHHHH.flac
 #' @param output_dir Character. Path where the manifest CSV will be saved.
 #' @param year Integer. Year of recording (default = current year).
 #' @param location Character. Area, site or prefix (default = `""`).
@@ -38,8 +38,8 @@
 #'   input_dir = "G:/HB",
 #'   output_dir = "C:/output",
 #'   year = 2023,
-#'   location = "NPS",
-#'   technician = "PoojaP"
+#'   location = "Habitat",
+#'   technician = "ASW"
 #' )
 #' head(manifest)
 #' }
@@ -57,8 +57,11 @@ CreateManifest <- function(input_dir,
                            export = c("csv", "object")) {
 
   # read exif metadata
+  
   filePattern <- "\\.flac$"
 
+  #filePattern <- list.files( pattern = "\\.(flac|wav)$", full.names = TRUE )# allows user to return .flac and .wav files
+  
   cli::cli_progress_bar("Reading EXIF data from files ")
 
   a <- exifr::read_exif(
@@ -81,7 +84,10 @@ CreateManifest <- function(input_dir,
   directoryShort <- subsequent.file1_basename <- subsequent.file2_basename <- MD5_checksum <- rep("", nFiles)
 
   # parse datetime from filename
-  year_date_time <- stringr::str_sub(file_basename, -20, -6)
+  
+  clean_filename <- gsub("\\(-\\d{4}\\)", "", file_basename)   # Remove the UTC offset pattern if present
+ 
+  year_date_time <- stringr::str_sub(clean_filename, -20, -6)
   year <- stringr::str_sub(year_date_time, 1, 4)
   month <- stringr::str_sub(year_date_time, 5, 6)
   day <- stringr::str_sub(year_date_time, 7, 8)
@@ -95,7 +101,7 @@ CreateManifest <- function(input_dir,
 
   # group/plot from filename
 
-  df <- tibble::tibble(names = stringr::str_sub(file_basename, 1, -21)) |>
+  df <- tibble::tibble(names = stringr::str_sub(clean_filename, 1, -21)) |>
     dplyr::mutate(group = stringr::str_sub(names, 1, 4),
                   plot = stringr::str_sub(names, 5, 8),
                   area = location)
@@ -137,7 +143,7 @@ CreateManifest <- function(input_dir,
       tDiff <- as.double(hour[f + 1]) * 60 + as.double(minute[f + 1]) -
         (as.double(hour[f]) * 60 + as.double(minute[f]))
       if (tDiff - fileLength.min[f] < 2) {
-        subsequent.file1_basename[f] <- file_basename[f + 1]
+        subsequent.file1_basename[f] <- clean_filename[f + 1]
       }
     }
     cli::cli_progress_update()
@@ -151,7 +157,7 @@ CreateManifest <- function(input_dir,
       tDiff <- as.double(hour[f + 2]) * 60 + as.double(minute[f + 2]) -
         (as.double(hour[f]) * 60 + as.double(minute[f]))
       if (tDiff - fileLength.min[f] - fileLength.min[f + 2] < 2) {
-        subsequent.file2_basename[f] <- file_basename[f + 2]
+        subsequent.file2_basename[f] <- clean_filename[f + 2]
       }
     }
     cli::cli_progress_update()
@@ -165,7 +171,7 @@ CreateManifest <- function(input_dir,
                     "startTime.Excel","startTime.yyyymmddhhmm","fileLength.min","MD5_checksum")
 
   manifest <- data.frame(setNames(list(
-    directoryShort, file_basename, subsequent.file1_basename, subsequent.file2_basename,
+    directoryShort, clean_filename, subsequent.file1_basename, subsequent.file2_basename,
     FileSize.MB, FileType, recorderType, df$area, df$group, df$plot,
     plot.alias, recorder, recorderAlias, extraAttrib1, extraAttrib2,
     year, technician, date.mmdd, startTime.hhmm, startTime.Excel,

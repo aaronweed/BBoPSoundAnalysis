@@ -3,21 +3,22 @@
 devtools::install_github("aaronweed/BBoPSoundAnalysis")
 
 library(BBoPSoundAnalysis)
+library(magrittr)
 
 
 
 # set argument inputs for multiple functions
 
-flac_files <- "D:/NPS_Audio/2021/ACAD/ACAD3001"
+input_dir <- "D:/"
 
-manifest_output<- "C:/Users/aweed/Downloads"
+output_dir<- "C:/Users/aweed/Downloads"
 
 # Create manifest from sound files (only takes .flac now but that could be extended to .wav, etc)
 
 ?? CreateManifest # check out documentation
 
-manifest<-CreateManifest(input_dir = flac_files, 
-                         output_dir = manifest_output, 
+manifest<-CreateManifest(input_dir = input_dir, 
+                         output_dir = output_dir, 
                          location = "NPS", 
                          technician = "LauraS", 
                          export = "csv")
@@ -26,7 +27,7 @@ manifest<-CreateManifest(input_dir = flac_files,
 
 ??MakeSummaryTables # check out documentation
 
-MakeSummaryTables( "data/manifest.csv" , workpath_root = getwd())
+MakeSummaryTables( inFile = "C:/Users/aweed/Downloads/soundManifest_2025.csv" , workpath_root = "C:/Users/aweed/Downloads")
 
 
 # Conduct sound energy by minute

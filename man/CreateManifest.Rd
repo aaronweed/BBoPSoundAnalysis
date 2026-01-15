@@ -16,7 +16,7 @@ CreateManifest(
 )
 }
 \arguments{
-\item{input_dir}{Character. Path to the directory containing `.flac` files.}
+\item{input_dir}{Character. Path to the directory containing `.flac` files named as SITEID_YYYYMMDD_HHHHHH.flac}
 
 \item{output_dir}{Character. Path where the manifest CSV will be saved.}
 
@@ -55,8 +55,8 @@ CreateManifest(
   input_dir = "G:/HB",
   output_dir = "C:/output",
   year = 2023,
-  location = "NPS",
-  technician = "PoojaP"
+  location = "Habitat",
+  technician = "ASW"
 )
 head(manifest)
 }

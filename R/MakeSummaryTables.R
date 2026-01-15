@@ -234,13 +234,13 @@ combine_pngs_to_pdf <- function(output_dir, title_base) {
 
 #' Make Summary Tables per Group
 #'
-#' This high‑level function performs a multi‑stage cleaning, filtering,
+#' This function performs a multi‑stage cleaning, filtering,
 #' and summarization of sound manifest data. It removes anomalous recordings,
 #' filters based on duration and start‑time frequency, writes the cleaned
 #' manifest to an Excel file, and generates summary tables and visual
 #' summaries for each recording group.
 #'
-#' @param df1 A data frame containing the initial sound manifest, including
+#' @param manifest_file A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
 #'   at least the columns \code{fileLength.min}, \code{startTime.hhmm},
 #'   \code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.
 #' @param output_dir Path to the Excel file to be written (cleaned manifest).
@@ -273,6 +273,7 @@ combine_pngs_to_pdf <- function(output_dir, title_base) {
 #' Progress bars and step messages are printed using the \pkg{cli} package.
 #'
 #' @importFrom dplyr filter count semi_join group_by summarise n select
+#' @importFrom magrittr  %>%
 #' @importFrom tidyr pivot_wider
 #' @importFrom cli cli_progress_bar cli_progress_update cli_progress_step
 #' @importFrom writexl write_xlsx
@@ -284,7 +285,7 @@ combine_pngs_to_pdf <- function(output_dir, title_base) {
 #'
 #' @examples
 #' \dontrun{
-#' MakeSummaryTables(df1 = sound_manifest,
+#' MakeSummaryTables(manifest_file = sound_manifest,
 #'                        output_dir = "cleaned_manifest.xlsx",
 #'                        workpath_root = "output/")
 #' }
@@ -299,11 +300,11 @@ MakeSummaryTables <- function(inFile, output_dir, workpath_root) {
     if (!file.exists(inFile)) {
       stop("CSV file not found: ", inFile)
     }
-    df1 <- utils::read.csv(inFile, stringsAsFactors = FALSE)
+    manifest_file <- utils::read.csv(inFile, stringsAsFactors = FALSE)
     message("Imported manifest from CSV: ", inFile)
     
   } else if (is.data.frame(inFile)) {    # Use data frame directly
-    df1 <- inFile
+    manifest_file <- inFile
     message("Using manifest supplied as data frame")
     
   } else {
@@ -312,8 +313,8 @@ MakeSummaryTables <- function(inFile, output_dir, workpath_root) {
     if (!exists(obj_name, envir = .GlobalEnv)) {
       stop("Object not found in global environment: ", obj_name)
     }
-    df1 <- get(obj_name, envir = .GlobalEnv)
-    if (!is.data.frame(df1)) {
+    manifest_file <- get(obj_name, envir = .GlobalEnv)
+    if (!is.data.frame(manifest_file)) {
       stop("Object '", obj_name, "' exists but is not a data frame")
     }
     message("Imported manifest from global environment object: ", obj_name)
@@ -322,7 +323,7 @@ MakeSummaryTables <- function(inFile, output_dir, workpath_root) {
   # ---- MAIN PIPELINE ----
   cli::cli_progress_bar("Processing sound manifest", total = 5)
   
-  df1_filtered <- filter_by_duration(df1)                  ; cli::cli_progress_update()
+  df1_filtered <- filter_by_duration(manifest_file)                  ; cli::cli_progress_update()
   df2 <- filter_by_deviation(df1_filtered)                 ; cli::cli_progress_update()
   df3 <- filter_by_start_time_frequency(df2, df1_filtered) ; cli::cli_progress_update()
   
@@ -342,7 +343,7 @@ MakeSummaryTables <- function(inFile, output_dir, workpath_root) {
   cli::cli_progress_update()
   
   invisible(list(
-    df1 = df1_filtered,
+    manifest_file = df1_filtered,
     df2 = df2,
     df3 = df3,
     summary_table = summary_table

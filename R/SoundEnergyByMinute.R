@@ -1,219 +1,162 @@
-
-#' Compute minute-scale background sound energy from FLAC recordings using Python
+#' Calculate minute-level acoustic noise metrics from FLAC recordings
 #'
-#' This function reads a sound file manifest in which each row contains paths to one to
-#' three sequential FLAC audio files from the same recorder and day. It uses
-#' Python's \pkg{soundfile} library via \pkg{reticulate} to extract audio samples
-#' directly from FLAC files.
+#' This function reads a sound manifest, converts FLAC files to WAV using
+#' the external `sox` utility, concatenates sequential audio files,
+#' computes per-minute log10(RMSE) values, applies an 11-minute rolling
+#' average, generates diagnostic plots, and writes grouped CSV outputs.
 #'
-#' It can run sequentially or in parallel (via \pkg{future.apply}) and includes
-#' basic error handling for unreadable or corrupted FLAC files.
-#'
-#' @param manifest A data frame containing at least:
-#'   \itemize{
-#'     \item \code{path} — relative path to FLAC directory;
-#'     \item \code{file} — primary FLAC file name;
-#'     \item \code{subsequent.file1}, \code{subsequent.file2} — optional FLAC files;
-#'     \item \code{area}, \code{year}, \code{group}, \code{date.mmdd};
-#'     \item \code{plot}, \code{startTime.hhmm}.
-#'   }
-#' @param flac_files Root directory containing FLAC files.
-#' @param output_dir Directory where JPEGs and CSVs will be written.
-#' @param start_filter Only rows with \code{startTime.hhmm == start_filter}
-#'   are processed. Default: \code{"0500"}.
+#' @param manifest_file A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
+#'   at least the columns \code{fileLength.min}, \code{startTime.hhmm},
+#'   \code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.
+#' @param manifest_sheet Sheet name in the manifest file.
+#' @param flac_root Root directory containing FLAC audio files.
+#' @param output_dir Directory for CSV and JPG outputs.
+#' @param temp_dir Temporary directory for WAV conversion.
+#' @param start_time Filter manifest rows by `startTime.hhmm`.
 #' @param y_limits Numeric vector of length 2 giving y-axis limits for plots.
-#' @param max_minutes Maximum number of minutes to analyze per file set.
-#' @param parallel Logical; if \code{TRUE}, rows are processed in parallel using
-#'   \pkg{future.apply}. You must have a plan set (e.g., \code{future::plan()}).
 #'
-#' @return Invisibly returns a data frame with columns:
-#'   \code{area, year, group, date, plot, startTime.hhmm, minute, log10RMSE, movAvg11}.
+#' @return A data frame containing minute-level noise metrics for all files.
 #'
-#'   Side effects:
-#'   \itemize{
-#'     \item JPEG plots written to \code{file.path(output_dir, "noise_jpg_all")}.
-#'     \item group–year CSVs written to \code{output_dir}.
-#'   }
+#' @details
+#' Requires the external program **SoX** to be installed and available on
+#' the system PATH. Each FLAC file is temporarily converted to WAV before
+#' analysis.
 #'
-#' @importFrom zoo rollmean
-#' @importFrom ggplot2 ggplot geom_line aes labs scale_color_manual ylim ggsave
-#' @importFrom utils write.csv
-#' @importFrom cli cli_progress_bar cli_progress_update cli_alert_warning cli_alert_success
-#' @importFrom future.apply future_lapply
-#' @import reticulate
+#' Output includes:
+#' \itemize{
+#'   \item Per-minute log10(RMSE)
+#'   \item 11-minute rolling mean
+#'   \item JPG plots of noise time series
+#'   \item Grouped CSV files by group × year
+#' }
 #'
 #' @export
+#' 
 SoundEnergyByMinute <- function(
-    manifest,
-    flac_files,
+    manifest_file,
+    manifest_sheet = "soundManifest",
+    flac_root,
     output_dir,
-    start_filter = "0500",
-    y_limits = c(2.3, 4.0),
-    max_minutes = 180,
-    parallel = FALSE
+    temp_dir = tempdir(),
+    start_time = 500,
+    y_limits = c(2.3, 4.0)
 ) {
-  # Load Python FLAC reader
-  py_run_string("
-import soundfile as sf
-
-def read_flac_safe(path):
-    try:
-        samples, rate = sf.read(path)
-        return {
-            'ok': True,
-            'samples': samples.tolist(),
-            'rate': rate,
-            'path': path
-        }
-    except Exception as e:
-        print(f'Failed to read FLAC: {path}\\nReason: {str(e)}')
-        return {
-            'ok': False,
-            'samples': None,
-            'rate': None,
-            'path': path
-        }
-")
   
-  # R wrapper for Python FLAC reader
-  read_flac_safe <- function(path) {
-    result <- py$read_flac_safe(path)
-    if (is.null(result)) {
-      cli::cli_alert_warning("Python returned NULL for {path}")
-      return(list(ok = FALSE, samples = NULL, rate = NA_integer_, path = path))
-    }
-    list(
-      ok = result$ok,
-      samples = unlist(result$samples),
-      rate = result$rate,
-      path = result$path
-    )
+  ## ---- dependencies ----
+  if (Sys.which("sox") == "") {
+    stop("SoX is required but not found on system PATH.")
   }
   
-  # Ensure output dirs
+  ## ---- directories ----
+  dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
   jpg_dir <- file.path(output_dir, "noise_jpg_all")
-  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
-  if (!dir.exists(jpg_dir)) dir.create(jpg_dir, recursive = TRUE)
+  dir.create(jpg_dir, showWarnings = FALSE)
   
-  # Filter manifest
-  manifest <- dplyr::filter(manifest, startTime.hhmm == start_filter)
-  if (nrow(manifest) == 0) {
-    cli::cli_alert_warning("No rows match startTime.hhmm == {start_filter}.")
-    return(invisible(NULL))
+  ## ---- read & filter manifest ----
+  manifest <- openxlsx::read.xlsx(manifest_file, manifest_sheet) |>
+    dplyr::filter(startTime.hhmm == start_time)
+  
+  ## ---- helper: flac -> wav -> Wave ----
+  read_flac_as_wave <- function(flac_path, wav_path) {
+    system2("sox", c(shQuote(flac_path), shQuote(wav_path)), stdout = FALSE)
+    tuneR::readWave(wav_path)
   }
   
-  # Helper: process a single manifest row
-  process_row <- function(row, y_limits, max_minutes, flac_files, jpg_dir) {
-    f1 <- file.path(flac_files, row$path, row$file)
-    f2 <- if (!is.na(row$subsequent.file1)) file.path(flac_files, row$path, row$subsequent.file1) else NA_character_
-    f3 <- if (!is.na(row$subsequent.file2)) file.path(flac_files, row$path, row$subsequent.file2) else NA_character_
+  all_results <- list()
+  
+  ## ---- main loop ----
+  for (f in seq_len(nrow(manifest))) {
     
-    r1 <- read_flac_safe(f1)
-    if (!isTRUE(r1$ok)) return(NULL)
+    if (f %% 100 == 0) message("Processing file ", f)
     
-    audio <- r1$samples
-    rate  <- r1$rate
+    unlink(list.files(temp_dir, "^output_file_.*\\.wav$", full.names = TRUE))
     
-    if (!is.na(f2)) {
-      r2 <- read_flac_safe(f2)
-      if (isTRUE(r2$ok)) audio <- c(audio, r2$samples)
+    wav_paths <- file.path(
+      temp_dir,
+      paste0("output_file_", 1:3, ".wav")
+    )
+    
+    flac_files <- c(
+      manifest$file[f],
+      manifest$subsequent.file1[f],
+      manifest$subsequent.file2[f]
+    )
+    
+    flac_files <- flac_files[!is.na(flac_files)]
+    
+    waves <- lapply(seq_along(flac_files), function(i) {
+      flac_path <- file.path(flac_root, manifest$path[f], flac_files[i])
+      flac_path <- gsub("//", "/", flac_path)
+      read_flac_as_wave(flac_path, wav_paths[i])
+    })
+    
+    audio_full <- unlist(lapply(waves, function(w) w@left))
+    samp_rate <- waves[[1]]@samp.rate
+    
+    minute_max <- floor(length(audio_full) / samp_rate / 60)
+    if (minute_max < 2) next
+    
+    log10_rmse <- numeric(minute_max)
+    
+    for (m in seq_len(minute_max)) {
+      idx <- ((m) * 60 * samp_rate + 1):((m + 1) * 60 * samp_rate)
+      log10_rmse[m] <- log10(stats::sd(audio_full[idx]))
     }
-    if (!is.na(f3)) {
-      r3 <- read_flac_safe(f3)
-      if (isTRUE(r3$ok)) audio <- c(audio, r3$samples)
-    }
     
-    duration_min <- length(audio) / rate / 60
-    minuteMax <- min(floor(duration_min), max_minutes)
-    if (minuteMax < 1) return(NULL)
+    mov_avg <- zoo::rollmean(log10_rmse, k = 11, fill = NA)
     
-    log10RMSE <- numeric(minuteMax)
-    for (m in seq_len(minuteMax)) {
-      start <- (m - 1) * 60 * rate + 1
-      end   <- m * 60 * rate
-      seg   <- audio[start:end]
-      log10RMSE[m] <- log10(sd(seg))
-    }
-    
-    movAvg11 <- zoo::rollmean(log10RMSE, k = 11, fill = NA)
-    
-    df_out <- data.frame(
-      area = row$area,
-      year = row$year,
-      group = row$group,
-      date = row$date.mmdd,
-      plot = row$plot,
-      startTime.hhmm = row$startTime.hhmm,
-      minute = seq_len(minuteMax),
-      log10RMSE = log10RMSE,
-      movAvg11 = movAvg11,
+    df <- data.frame(
+      area = manifest$area[f],
+      year = manifest$year[f],
+      group = manifest$group[f],
+      date = manifest$date.mmdd[f],
+      plot = manifest$plot[f],
+      startTime.hhmm = manifest$startTime.hhmm[f],
+      minute = seq_len(minute_max),
+      log10RMSE = log10_rmse,
+      movAvg11 = mov_avg,
       stringsAsFactors = FALSE
     )
     
-    # Plot
-    p <- ggplot2::ggplot() +
-      ggplot2::geom_line(
-        data = df_out,
-        ggplot2::aes(x = minute, y = log10RMSE, color = "byMinute")
-      ) +
-      ggplot2::geom_line(
-        data = df_out,
-        ggplot2::aes(x = minute, y = movAvg11, color = "movAvg11")
-      ) +
-      ggplot2::labs(
-        x = "Minute",
-        y = "log10RMSE",
-        title = paste(row$area, row$group, row$plot, row$year, row$date.mmdd)
-      ) +
-      ggplot2::scale_color_manual(values = c(byMinute = "blue", movAvg11 = "red")) +
-      ggplot2::ylim(y_limits)
-    
-    out_jpg <- file.path(
-      jpg_dir,
-      paste0(row$area, "_", row$group, "_", row$plot, "_",
-             row$year, "_", row$date.mmdd, ".jpg")
-    )
-    ggplot2::ggsave(out_jpg, p, width = 6, height = 4, dpi = 300)
-    
-    df_out
-  }
-  
-  # Progress bar
-  n <- nrow(manifest)
-  cli::cli_progress_bar("Analyzing FLAC rows", total = n)
-  index <- seq_len(n)
-  
-  # Choose apply function
-  apply_fun <- if (parallel) future.apply::future_lapply else lapply
-  
-  res_list <- apply_fun(
-    index,
-    function(i) {
-      on.exit(cli::cli_progress_update(), add = TRUE)
-      row <- manifest[i, , drop = FALSE]
-      process_row(row, y_limits = y_limits, max_minutes = max_minutes,
-                  flac_files = flac_files, jpg_dir = jpg_dir)
+    ## ---- plot ----
+    if (nrow(df) > 10) {
+      p <- ggplot2::ggplot(df, ggplot2::aes(x = minute)) +
+        ggplot2::geom_line(ggplot2::aes(y = log10RMSE, color = "byMinute")) +
+        ggplot2::geom_line(ggplot2::aes(y = movAvg11, color = "movAvg11")) +
+        ggplot2::scale_color_manual(values = c("blue", "red"), name = "Lines") +
+        ggplot2::labs(
+          title = paste(df$area[1], df$group[1], df$plot[1],
+                        df$year[1], df$date[1], sep = " - "),
+          x = "Minutes",
+          y = "log10(RMSE)"
+        ) +
+        ggplot2::ylim(y_limits)
+      
+      ggsave(
+        filename = file.path(
+          jpg_dir,
+          paste0(df$area[1], "-", df$group[1], "-", df$plot[1], ".",
+                 df$year[1], "-", df$date[1], ".jpg")
+        ),
+        plot = p,
+        width = 6, height = 4, dpi = 300
+      )
     }
-  )
-  
-  # Combine results
-  res_list <- Filter(Negate(is.null), res_list)
-  if (length(res_list) == 0L) {
-    cli::cli_alert_warning("No valid noise data produced from manifest.")
-    return(invisible(NULL))
+    
+    all_results[[length(all_results) + 1]] <- df
   }
   
-  noise_out4 <- do.call(rbind, res_list)
+  final_df <- dplyr::bind_rows(all_results)
   
-  # Split and write CSVs
-  split_key <- interaction(noise_out4$group, noise_out4$year)
-  groups <- split(noise_out4, split_key)
-  
+  ## ---- grouped CSV output ----
+  groups <- split(final_df, interaction(final_df$group, final_df$year))
   for (nm in names(groups)) {
-    out_csv <- file.path(output_dir, paste0("group_", nm, ".csv"))
-    utils::write.csv(groups[[nm]], out_csv, row.names = FALSE)
+    utils::write.csv(
+      groups[[nm]],
+      file.path(output_dir, paste0("group_", nm, ".csv")),
+      row.names = FALSE
+    )
   }
   
-  cli::cli_alert_success("Sound energy analysis completed: {length(groups)} group-year CSVs written.")
-  invisible(noise_out4)
+  final_df
 }
