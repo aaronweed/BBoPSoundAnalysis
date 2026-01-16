@@ -2,59 +2,54 @@
 % Please edit documentation in R/SoundEnergyByMinute.R
 \name{SoundEnergyByMinute}
 \alias{SoundEnergyByMinute}
-\title{Compute minute-scale background sound energy from FLAC recordings using Python}
+\title{Calculate minute-level acoustic noise metrics from FLAC recordings}
 \usage{
 SoundEnergyByMinute(
-  manifest,
-  flac_files,
+  manifest_file,
+  manifest_sheet = "soundManifest",
+  flac_root,
   output_dir,
-  start_filter = "0500",
-  y_limits = c(2.3, 4),
-  max_minutes = 180,
-  parallel = FALSE
+  temp_dir = tempdir(),
+  start_time = 500,
+  y_limits = c(2.3, 4)
 )
 }
 \arguments{
-\item{manifest}{A data frame containing at least:
-\itemize{
-  \item \code{path} — relative path to FLAC directory;
-  \item \code{file} — primary FLAC file name;
-  \item \code{subsequent.file1}, \code{subsequent.file2} — optional FLAC files;
-  \item \code{area}, \code{year}, \code{group}, \code{date.mmdd};
-  \item \code{plot}, \code{startTime.hhmm}.
-}}
+\item{manifest_file}{A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
+at least the columns \code{fileLength.min}, \code{startTime.hhmm},
+\code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.}
 
-\item{flac_files}{Root directory containing FLAC files.}
+\item{manifest_sheet}{Sheet name in the manifest file.}
 
-\item{output_dir}{Directory where JPEGs and CSVs will be written.}
+\item{flac_root}{Root directory containing FLAC audio files.}
 
-\item{start_filter}{Only rows with \code{startTime.hhmm == start_filter}
-are processed. Default: \code{"0500"}.}
+\item{output_dir}{Directory for CSV and JPG outputs.}
+
+\item{temp_dir}{Temporary directory for WAV conversion.}
+
+\item{start_time}{Filter manifest rows by `startTime.hhmm`.}
 
 \item{y_limits}{Numeric vector of length 2 giving y-axis limits for plots.}
-
-\item{max_minutes}{Maximum number of minutes to analyze per file set.}
-
-\item{parallel}{Logical; if \code{TRUE}, rows are processed in parallel using
-\pkg{future.apply}. You must have a plan set (e.g., \code{future::plan()}).}
 }
 \value{
-Invisibly returns a data frame with columns:
-  \code{area, year, group, date, plot, startTime.hhmm, minute, log10RMSE, movAvg11}.
-
-  Side effects:
-  \itemize{
-    \item JPEG plots written to \code{file.path(output_dir, "noise_jpg_all")}.
-    \item group–year CSVs written to \code{output_dir}.
-  }
+A data frame containing minute-level noise metrics for all files.
 }
 \description{
-This function reads a sound file manifest in which each row contains paths to one to
-three sequential FLAC audio files from the same recorder and day. It uses
-Python's \pkg{soundfile} library via \pkg{reticulate} to extract audio samples
-directly from FLAC files.
+This function reads a sound manifest, converts FLAC files to WAV using
+the external `sox` utility, concatenates sequential audio files,
+computes per-minute log10(RMSE) values, applies an 11-minute rolling
+average, generates diagnostic plots, and writes grouped CSV outputs.
 }
 \details{
-It can run sequentially or in parallel (via \pkg{future.apply}) and includes
-basic error handling for unreadable or corrupted FLAC files.
+Requires the external program **SoX** to be installed and available on
+the system PATH. Each FLAC file is temporarily converted to WAV before
+analysis.
+
+Output includes:
+\itemize{
+  \item Per-minute log10(RMSE)
+  \item 11-minute rolling mean
+  \item JPG plots of noise time series
+  \item Grouped CSV files by group × year
+}
 }

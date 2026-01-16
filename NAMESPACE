@@ -3,6 +3,7 @@
 export(CreateManifest)
 export(MakeSummaryTables)
 export(SoundEnergyByMinute)
+export(SoundEnergyByMinute.py)
 import(reticulate)
 importFrom(cli,cli_alert_success)
 importFrom(cli,cli_alert_warning)

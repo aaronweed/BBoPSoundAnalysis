@@ -12,7 +12,7 @@ MakeSummaryTables(inFile, output_dir, workpath_root)
 \item{workpath_root}{Directory where summary PNGs and the combined PDF
 will be written.}
 
-\item{df1}{A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
+\item{manifest_file}{A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
 at least the columns \code{fileLength.min}, \code{startTime.hhmm},
 \code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.}
 }
@@ -51,7 +51,7 @@ Progress bars and step messages are printed using the \pkg{cli} package.
 }
 \examples{
 \dontrun{
-MakeSummaryTables(df1 = sound_manifest,
+MakeSummaryTables(manifest_file = sound_manifest,
                        output_dir = "cleaned_manifest.xlsx",
                        workpath_root = "output/")
 }
