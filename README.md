@@ -15,8 +15,15 @@ The package supports manifest creation, summary table generation, and minute‑s
 
 ```r
 # install.packages("devtools")
-devtools::install_github("aaronweed/BBoPSoundAnalysis")
+devtools::install_github("aaronweed/BBoPSoundAnalysis", build_vignettes = TRUE)
 ```
+
+### Vignette
+
+```r
+vignette(package = "BBoPSoundAnalysis")
+```
+
 
 ## Package Structure
 

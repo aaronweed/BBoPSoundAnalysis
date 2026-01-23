@@ -292,24 +292,24 @@ combine_pngs_to_pdf <- function(output_dir, title_base) {
 #'
 #' @export 
 #' 
-MakeSummaryTables <- function(inFile, output_dir, workpath_root) {
+MakeSummaryTables <- function(manifest_file, output_dir, workpath_root) {
   
   # ---- FLEXIBLE INPUT HANDLING ----
-  if (is.character(inFile)) {
+  if (is.character(manifest_file)) {
     # Treat as CSV file path
-    if (!file.exists(inFile)) {
-      stop("CSV file not found: ", inFile)
+    if (!file.exists(manifest_file)) {
+      stop("CSV file not found: ", manifest_file)
     }
-    manifest_file <- utils::read.csv(inFile, stringsAsFactors = FALSE)
-    message("Imported manifest from CSV: ", inFile)
+    manifest_file <- utils::read.csv(manifest_file, stringsAsFactors = FALSE)
+    message("Imported manifest from CSV: ", manifest_file)
     
-  } else if (is.data.frame(inFile)) {    # Use data frame directly
-    manifest_file <- inFile
+  } else if (is.data.frame(manifest_file)) {    # Use data frame directly
+    manifest_file <- manifest_file
     message("Using manifest supplied as data frame")
     
   } else {
     # Treat as object name (unquoted)
-    obj_name <- as.character(substitute(inFile))
+    obj_name <- as.character(substitute(manifest_file))
     if (!exists(obj_name, envir = .GlobalEnv)) {
       stop("Object not found in global environment: ", obj_name)
     }
