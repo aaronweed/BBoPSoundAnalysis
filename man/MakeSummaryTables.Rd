@@ -4,17 +4,17 @@
 \alias{MakeSummaryTables}
 \title{Make Summary Tables per Group}
 \usage{
-MakeSummaryTables(inFile, output_dir, workpath_root)
+MakeSummaryTables(manifest_file, output_dir, workpath_root)
 }
 \arguments{
+\item{manifest_file}{A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
+at least the columns \code{fileLength.min}, \code{startTime.hhmm},
+\code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.}
+
 \item{output_dir}{Path to the Excel file to be written (cleaned manifest).}
 
 \item{workpath_root}{Directory where summary PNGs and the combined PDF
 will be written.}
-
-\item{manifest_file}{A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
-at least the columns \code{fileLength.min}, \code{startTime.hhmm},
-\code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.}
 }
 \value{
 Invisibly returns a list with components:

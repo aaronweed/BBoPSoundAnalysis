@@ -1,0 +1,114 @@
+---
+title: "Sound File Processing with BBoPSoundAnalysis"
+description: "Tools for processing sound files"
+author: "Aaron Weed and Matt Ayres"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+
+vignette: >
+  %\VignetteIndexEntry{BBoPSoundAnalysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+
+template:
+  bootstrap: 5
+
+articles:
+  - title: "Getting started"
+    contents:
+      - analyzing-sound-files
+
+navbar:
+  structure:
+    left:  [intro, reference, articles]
+    right: [github]
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+collapse = TRUE,
+comment = "#>",
+fig.width = 7,
+fig.height = 4
+)
+
+```
+
+# Introduction
+
+The BBoPSoundAnalysis package provides tools for processing and summarizing collections of sound files for analysis, including creating manifest files, generating summary tables, and computing minute-scale sound energy metrics. It is useful for researchers working with acoustic datasets who need to preprocess and inspect large numbers of files.
+
+This vignette shows how to install and use the main functions in BBoPSoundAnalysis to process and analyze sound files. For more details on individual functions and their parameters, refer to the package documentation and help pages.
+
+# Installation
+
+Install the development version from GitHub:
+
+```{r install, eval=F}
+# install.packages("devtools") # if needed
+devtools::install_github("aaronweed/BBoPSoundAnalysis", build_vignettes = TRUE)
+```
+
+Load the package:
+
+```{r load, eval=F}
+library(BBoPSoundAnalysis)
+```
+
+
+# Typical Workflow
+
+A common workflow using BBoPSoundAnalysis follows three main steps:
+
+1. Create a manifest describing the sound files in a specified directory
+
+2. Generate summary tables of the sound files by recording location and date
+
+3. Compute minute-scale sound energy metrics for evaluating background noise and the recording quality
+
+The sections below walk through each step.
+
+# 1. Creating a Manifest of Files
+
+The first step is to scan a directory of sound files and create a manifest. A manifest is a data frame that records file paths and associated metadata needed for downstream analysis.Users can select whether to export manifest as a \code{csv} file in your \code{output_dir} or to the global environment \code{object}.
+
+```{r CreateManifest, eval=F}
+
+sound_dir <- "path/to/sound/files"
+manifest <- CreateManifest(sound_dir , output_dir = "/output", year = 2023, location = "Park A", technician = "RAL")
+head(manifest)
+
+```
+
+The manifest object acts as the backbone of the analysis pipeline and is passed to most downstream functions.
+
+# 2. Summarizing Files
+
+After creating a manifest, summary tables can be generated to provide a high-level overview of the sound file inventory These summaries are useful for detecting missing files, unexpected durations, or other irregularities early in the analysis.
+
+```{r MakeSummary, eval=F}
+
+summary_tbl <- MakeSummaryTables(manifest_file = manifest, output_dir = "output/cleaned_manifest.xlsx", workpath_root = "output/")
+summary_tbl
+```
+
+# 3. Minute-Scale Sound Energy
+
+SoundEnergyByMinute calculates variation in sound pressure over time to help with evaluating the quality of each sound file.
+```{r soundenergy, eval=F}
+energy_by_minute <- SoundEnergyByMinute(manifest)
+```
+
+# Visualization
+```{r viz, eval=F}
+library(ggplot2)
+ggplot(energy_by_minute, aes(x = minute, y = energy)) +
+geom_line() +
+labs(title = "Sound Energy by Minute",
+x = "Minute",
+y = "Energy"
+)
+```
+
+
+
+

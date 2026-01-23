@@ -18,6 +18,13 @@ The package supports manifest creation, summary table generation, and minute‑s
 devtools::install_github("aaronweed/BBoPSoundAnalysis")
 ```
 
+### Vignette
+
+```r
+vignette("Sound File Processing with BBoPSoundAnalysis", package = "BBoPSoundAnalysis")
+```
+
+
 ## Package Structure
 
 ### Functions
