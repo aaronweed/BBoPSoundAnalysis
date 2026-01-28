@@ -4,56 +4,41 @@
 \alias{MakeSummaryTables}
 \title{Make Summary Tables per Group}
 \usage{
-MakeSummaryTables(manifest_file, output_dir, workpath_root)
+MakeSummaryTables(manifest_file, manifest_xlsx, output_dir)
 }
 \arguments{
-\item{manifest_file}{A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
-at least the columns \code{fileLength.min}, \code{startTime.hhmm},
-\code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.}
+\item{manifest_file}{A data frame produced by \code{CreateManifest()} or
+a path to a CSV file containing the manifest.}
 
-\item{output_dir}{Path to the Excel file to be written (cleaned manifest).}
-
-\item{workpath_root}{Directory where summary PNGs and the combined PDF
+\item{manifest_xlsx}{Path to an Excel file where the cleaned manifest
 will be written.}
+
+\item{output_dir}{Directory where PNGs and the combined PDF are written.}
+
+\item{title_base}{Character string used as the base title for summary plots.}
 }
 \value{
 Invisibly returns a list with components:
   \itemize{
-    \item \code{df1} Filtered dataset after removing long recordings.
-    \item \code{df2} Dataset filtered by deviation from mean duration.
-    \item \code{df3} Dataset filtered by start‑time frequency.
-    \item \code{summary_table} Wide summary table of counts by
-          group/plot/date.
+    \item \code{df1} After filtering long recordings
+    \item \code{df2} After deviation filtering
+    \item \code{df3} Final cleaned dataset
+    \item \code{summary_table} Wide summary table
   }
 }
 \description{
-This function performs a multi‑stage cleaning, filtering,
-and summarization of sound manifest data. It removes anomalous recordings,
-filters based on duration and start‑time frequency, writes the cleaned
-manifest to an Excel file, and generates summary tables and visual
-summaries for each recording group.
-}
-\details{
-The processing steps are:
-\enumerate{
-  \item Remove rows where \code{fileLength.min > 70}.
-  \item Remove rows whose \code{fileLength.min} deviates by more than
-        5\% from the mean duration.
-  \item Remove rows whose \code{startTime.hhmm} occurs in fewer than 5\%
-        of the rows in the reference dataset.
-  \item Write the cleaned manifest (\code{df3}) to an Excel file.
-  \item Create a wide summary table of counts per group/plot/date.
-  \item Generate PNG summary tables for each group and combine them
-        into a single PDF.
-}
-
-Progress bars and step messages are printed using the \pkg{cli} package.
+Performs cleaning, filtering, and summarization of a sound manifest,
+writes a cleaned manifest to Excel, and generates per-group summary
+tables as PNG images and a combined PDF.
 }
 \examples{
 \dontrun{
-MakeSummaryTables(manifest_file = sound_manifest,
-                       output_dir = "cleaned_manifest.xlsx",
-                       workpath_root = "output/")
+MakeSummaryTables(
+  manifest_file = sound_manifest,
+  manifest_xlsx = "cleaned_manifest.xlsx",
+  output_dir = "output/",
+  title_base = "BBoP Deployment Summary"
+)
 }
 
 }

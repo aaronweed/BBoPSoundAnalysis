@@ -185,7 +185,7 @@ CreateManifest <- function(input_dir,
     return(invisible(manifest)) 
     } 
   
-  if (export == "object") { return(b1) # returned to global environment if user assigns it }
+  if (export == "object") { return(manifest) # returned to global environment if user assigns it }
     
   }
 

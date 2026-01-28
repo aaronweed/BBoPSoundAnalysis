@@ -10,12 +10,10 @@
 #'
 #' @keywords internal
 #' @noRd
-#' 
 filter_by_duration <- function(df, max_minutes = 70) {
   cli::cli_progress_step("Filtering long recordings")
-  dplyr::filter(df, .data$fileLength.min <= max_minutes)
+  df<-dplyr::filter(df, .data$fileLength.min <= max_minutes)
 }
-
 
 #' Filter recordings by deviation from mean duration
 #'
@@ -24,20 +22,17 @@ filter_by_duration <- function(df, max_minutes = 70) {
 #'
 #' @param df A data frame containing a numeric column \code{fileLength.min}.
 #' @param pct Numeric scalar between 0 and 1. Maximum allowed relative
-#'   deviation from the mean duration (e.g., \code{0.05} for 5\%).
-#'
-#' @return A filtered data frame containing only rows within the allowed
 #'   deviation from the mean duration.
+#'
+#' @return A filtered data frame.
 #'
 #' @keywords internal
 #' @noRd
-#' 
 filter_by_deviation <- function(df, pct = 0.05) {
   cli::cli_progress_step("Filtering by duration deviation")
   m <- mean(df$fileLength.min, na.rm = TRUE)
-  dplyr::filter(df, abs(.data$fileLength.min - m) / m <= pct)
+  dplyr::filter(df, abs(.data$fileLength.min - m) / m <= pct) #removing any rows in which fileLength.min deviates by more than 5% from the mean of fileLength.min
 }
-
 
 #' Filter recordings by start time frequency
 #'
@@ -45,17 +40,13 @@ filter_by_deviation <- function(df, pct = 0.05) {
 #' of the total rows in a reference data frame.
 #'
 #' @param df A data frame containing \code{startTime.hhmm}.
-#' @param reference_df A reference data frame used to compute the frequency
-#'   threshold (typically the original or less filtered dataset).
-#' @param pct Numeric scalar between 0 and 1. Minimum frequency threshold
-#'   as a fraction of the number of rows in \code{reference_df}.
+#' @param reference_df A data frame used to compute the frequency threshold.
+#' @param pct Numeric scalar between 0 and 1.
 #'
-#' @return A filtered data frame containing only rows whose
-#'   \code{startTime.hhmm} meets or exceeds the frequency threshold.
+#' @return A filtered data frame.
 #'
 #' @keywords internal
 #' @noRd
-#' 
 filter_by_start_time_frequency <- function(df, reference_df, pct = 0.05) {
   cli::cli_progress_step("Filtering unusual start times")
   
@@ -66,7 +57,7 @@ filter_by_start_time_frequency <- function(df, reference_df, pct = 0.05) {
   
   df |>
     dplyr::semi_join(
-      time_counts |> dplyr::filter(.data$count >= threshold),
+      dplyr::filter(time_counts, .data$count >= threshold),
       by = "startTime.hhmm"
     )
 }
@@ -75,24 +66,21 @@ filter_by_start_time_frequency <- function(df, reference_df, pct = 0.05) {
 #' Create summary table of recording counts
 #'
 #' Builds a wide summary table with rows representing locations (group/plot)
-#' and columns representing dates (\code{date.mmdd}), containing counts of
-#' recordings per cell.
+#' and columns representing dates.
 #'
 #' @param df A data frame containing \code{group}, \code{plot}, and
 #'   \code{date.mmdd}.
 #'
-#' @return A wide data frame (tibble) with one row per \code{group}–\code{plot}
-#'   combination and one column per date.
+#' @return A wide data frame with counts per date.
 #'
 #' @keywords internal
 #' @noRd
-#' 
 create_summary_table <- function(df) {
   cli::cli_progress_step("Creating summary table")
   
   df |>
     dplyr::group_by(group, plot, date.mmdd) |>
-    dplyr::summarise(count = dplyr::n(), .groups = "drop")|>
+    dplyr::summarise(count = dplyr::n(), .groups = "drop") |>
     tidyr::pivot_wider(
       names_from = date.mmdd,
       values_from = count,
@@ -234,65 +222,40 @@ combine_pngs_to_pdf <- function(output_dir, title_base) {
 
 #' Make Summary Tables per Group
 #'
-#' This function performs a multi‑stage cleaning, filtering,
-#' and summarization of sound manifest data. It removes anomalous recordings,
-#' filters based on duration and start‑time frequency, writes the cleaned
-#' manifest to an Excel file, and generates summary tables and visual
-#' summaries for each recording group.
+#' Performs cleaning, filtering, and summarization of a sound manifest,
+#' writes a cleaned manifest to Excel, and generates per-group summary
+#' tables as PNG images and a combined PDF.
 #'
-#' @param manifest_file A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
-#'   at least the columns \code{fileLength.min}, \code{startTime.hhmm},
-#'   \code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.
-#' @param output_dir Path to the Excel file to be written (cleaned manifest).
-#' @param workpath_root Directory where summary PNGs and the combined PDF
+#' @param manifest_file A data frame produced by \code{CreateManifest()} or
+#'   a path to a CSV file containing the manifest.
+#' @param manifest_xlsx Path to an Excel file where the cleaned manifest
 #'   will be written.
+#' @param output_dir Directory where PNGs and the combined PDF are written.
+#' @param title_base Character string used as the base title for summary plots.
 #'
 #' @return Invisibly returns a list with components:
 #'   \itemize{
-#'     \item \code{df1} Filtered dataset after removing long recordings.
-#'     \item \code{df2} Dataset filtered by deviation from mean duration.
-#'     \item \code{df3} Dataset filtered by start‑time frequency.
-#'     \item \code{summary_table} Wide summary table of counts by
-#'           group/plot/date.
+#'     \item \code{df1} After filtering long recordings
+#'     \item \code{df2} After deviation filtering
+#'     \item \code{df3} Final cleaned dataset
+#'     \item \code{summary_table} Wide summary table
 #'   }
-#'
-#' @details
-#' The processing steps are:
-#' \enumerate{
-#'   \item Remove rows where \code{fileLength.min > 70}.
-#'   \item Remove rows whose \code{fileLength.min} deviates by more than
-#'         5\% from the mean duration.
-#'   \item Remove rows whose \code{startTime.hhmm} occurs in fewer than 5\%
-#'         of the rows in the reference dataset.
-#'   \item Write the cleaned manifest (\code{df3}) to an Excel file.
-#'   \item Create a wide summary table of counts per group/plot/date.
-#'   \item Generate PNG summary tables for each group and combine them
-#'         into a single PDF.
-#' }
-#'
-#' Progress bars and step messages are printed using the \pkg{cli} package.
-#'
-#' @importFrom dplyr filter count semi_join group_by summarise n select
-#' @importFrom magrittr  %>%
-#' @importFrom tidyr pivot_wider
-#' @importFrom cli cli_progress_bar cli_progress_update cli_progress_step
-#' @importFrom writexl write_xlsx
-#' @importFrom gridExtra ttheme_minimal tableGrob grid.arrange
-#' @importFrom grid textGrob gpar grid.newpage grid.draw rasterGrob unit
-#' @importFrom png readPNG
-#' @importFrom grDevices png dev.off pdf
-#' @importFrom stats na.omit
 #'
 #' @examples
 #' \dontrun{
-#' MakeSummaryTables(manifest_file = sound_manifest,
-#'                        output_dir = "cleaned_manifest.xlsx",
-#'                        workpath_root = "output/")
+#' MakeSummaryTables(
+#'   manifest_file = sound_manifest,
+#'   manifest_xlsx = "cleaned_manifest.xlsx",
+#'   output_dir = "output/",
+#'   title_base = "BBoP Deployment Summary"
+#' )
 #' }
 #'
-#' @export 
+#' @export
 #' 
-MakeSummaryTables <- function(manifest_file, output_dir, workpath_root) {
+MakeSummaryTables <- function(manifest_file,
+                              manifest_xlsx,
+                              output_dir) {
   
   # ---- FLEXIBLE INPUT HANDLING ----
   if (is.character(manifest_file)) {
@@ -329,6 +292,8 @@ MakeSummaryTables <- function(manifest_file, output_dir, workpath_root) {
   
   summary_table <- create_summary_table(df3)               ; cli::cli_progress_update()
   
+  writexl::write_xlsx(df3, manifest_xlsx)
+  
   title_base <- paste(df3$area[1], df3$year[1])
   
   for (grp in unique(df3$group)) {
@@ -336,10 +301,10 @@ MakeSummaryTables <- function(manifest_file, output_dir, workpath_root) {
       dplyr::filter(group == grp) |>
       dplyr::select(-group)
     
-    generate_group_summary_png(grp_table, grp, title_base, workpath_root)
+    generate_group_summary_png(grp_table, grp, title_base, output_dir)
   }
   
-  combine_pngs_to_pdf(workpath_root, title_base)
+  combine_pngs_to_pdf(output_dir, title_base)
   cli::cli_progress_update()
   
   invisible(list(

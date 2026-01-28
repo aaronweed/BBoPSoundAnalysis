@@ -7,15 +7,15 @@
 #'
 #' @param manifest_file A data frame containing the initial sound manifest created by \code{CreateManifest()}, including
 #'   at least the columns \code{fileLength.min}, \code{startTime.hhmm},
-#'   \code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}.
+#'   \code{group}, \code{plot}, \code{date.mmdd}, \code{area}, and \code{year}. Can also be a path to a CSV file containing the manifest.
 #' @param manifest_sheet Sheet name in the manifest file.
-#' @param flac_root Root directory containing FLAC audio files.
-#' @param output_dir Directory for CSV and JPG outputs.
+#' @param flac_dir Directory containing FLAC audio files.
+#' @param output_dir Directory of where to save CSV and JPG outputs.
 #' @param temp_dir Temporary directory for WAV conversion.
-#' @param start_time Filter manifest rows by `startTime.hhmm`.
-#' @param y_limits Numeric vector of length 2 giving y-axis limits for plots.
+#' @param start_time Filter manifest rows by `startTime.hhmm`. Defaults to 0500.
+#' @param y_limits Numeric vector of length 2 giving y-axis limits for plots. Defaults to c(2.3, 4.0).
 #'
-#' @return A data frame containing minute-level noise metrics for all files.
+#' @return A data frame containing minute-level noise metrics for all files. Saves one jpg for each recorder on each day of log10(RMSE) per minute.
 #'
 #' @details
 #' Requires the external program **SoX** to be installed and available on
@@ -35,28 +35,55 @@
 SoundEnergyByMinute <- function(
     manifest_file,
     manifest_sheet = "soundManifest",
-    flac_root,
+    flac_dir,
     output_dir,
     temp_dir = tempdir(),
     start_time = 500,
     y_limits = c(2.3, 4.0)
 ) {
   
+  # ---- FLEXIBLE INPUT HANDLING ----
+  if (is.character(manifest_file)) {
+    # Treat as CSV file path
+    if (!file.exists(manifest_file)) {
+      stop("CSV file not found: ", manifest_file)
+    }
+    manifest_file <- utils::read.csv(manifest_file, stringsAsFactors = FALSE)
+    message("Imported manifest from CSV: ", manifest_file)
+    
+  } else if (is.data.frame(manifest_file)) {    # Use data frame directly
+    manifest_file <- manifest_file
+    message("Using manifest supplied as data frame")
+    
+  } else {
+    # Treat as object name (unquoted)
+    obj_name <- as.character(substitute(manifest_file))
+    if (!exists(obj_name, envir = .GlobalEnv)) {
+      stop("Object not found in global environment: ", obj_name)
+    }
+    manifest_file <- get(obj_name, envir = .GlobalEnv)
+    if (!is.data.frame(manifest_file)) {
+      stop("Object '", obj_name, "' exists but is not a data frame")
+    }
+    message("Imported manifest from global environment object: ", obj_name)
+  }
+  
   ## ---- dependencies ----
   if (Sys.which("sox") == "") {
     stop("SoX is required but not found on system PATH.")
   }
   
-  ## ---- directories ----
+  ## ---- # Create output subdirectories if they do not exist ----
   dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
   jpg_dir <- file.path(output_dir, "noise_jpg_all")
   dir.create(jpg_dir, showWarnings = FALSE)
   
-  ## ---- read & filter manifest ----
+  ## ---- read & filter manifest by start time ----
   manifest <- openxlsx::read.xlsx(manifest_file, manifest_sheet) |>
     dplyr::filter(startTime.hhmm == start_time)
   
-  ## ---- helper: flac -> wav -> Wave ----
+  ## ---- helper function: flac -> wav -> Wave ----
+  # write flacfile and then convert to wav
   read_flac_as_wave <- function(flac_path, wav_path) {
     system2("sox", c(shQuote(flac_path), shQuote(wav_path)), stdout = FALSE)
     tuneR::readWave(wav_path)
@@ -65,13 +92,15 @@ SoundEnergyByMinute <- function(
   all_results <- list()
   
   ## ---- main loop ----
-  for (f in seq_len(nrow(manifest))) {
+  
+ 
+  for (f in seq_len(nrow(manifest))) {  
     
-    if (f %% 100 == 0) message("Processing file ", f)
+    if (f %% 100 == 0) message("Processing file ", f) # Check if the loop index is a multiple of 100
     
-    unlink(list.files(temp_dir, "^output_file_.*\\.wav$", full.names = TRUE))
+    unlink(list.files(temp_dir, "^output_file_.*\\.wav$", full.names = TRUE)) # delete any previous versions of temporary wav files in this directory
     
-    wav_paths <- file.path(
+    wav_paths <- file.path( # Assign wav_file within the workpath_temp directory
       temp_dir,
       paste0("output_file_", 1:3, ".wav")
     )
@@ -85,25 +114,25 @@ SoundEnergyByMinute <- function(
     flac_files <- flac_files[!is.na(flac_files)]
     
     waves <- lapply(seq_along(flac_files), function(i) {
-      flac_path <- file.path(flac_root, manifest$path[f], flac_files[i])
+      flac_path <- file.path(flac_dir, manifest$path[f], flac_files[i])
       flac_path <- gsub("//", "/", flac_path)
-      read_flac_as_wave(flac_path, wav_paths[i])
+      read_flac_as_wave(flac_path, wav_paths[i]) # write wav file and then read it
     })
     
-    audio_full <- unlist(lapply(waves, function(w) w@left))
-    samp_rate <- waves[[1]]@samp.rate
+    audio_full <- unlist(lapply(waves, function(w) w@left)) # combine wav files
+    samp_rate <- waves[[1]]@samp.rate # get sample rate from each wav file
     
-    minute_max <- floor(length(audio_full) / samp_rate / 60)
-    if (minute_max < 2) next
+    minute_max <- floor(length(audio_full) / samp_rate / 60) # truncate any data after the last full minute
+    if (minute_max < 2) next 
     
     log10_rmse <- numeric(minute_max)
     
-    for (m in seq_len(minute_max)) {
+    for (m in seq_len(minute_max)) { # skip first minute
       idx <- ((m) * 60 * samp_rate + 1):((m + 1) * 60 * samp_rate)
       log10_rmse[m] <- log10(stats::sd(audio_full[idx]))
     }
     
-    mov_avg <- zoo::rollmean(log10_rmse, k = 11, fill = NA)
+    mov_avg <- zoo::rollmean(log10_rmse, k = 11, fill = NA) # calculate moving average for 11-sec
     
     df <- data.frame(
       area = manifest$area[f],
