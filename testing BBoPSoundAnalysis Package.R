@@ -40,3 +40,14 @@ SoundEnergyByMinute(
     flac_root= input_dir,
     output_dir = output_dir,
     temp_dir= output_dir)
+
+
+library(sonicscrewdriver) #https://sonicscrewdriver.ebaker.me.uk/
+
+# Replace "your_file.flac" with the path to your file
+
+filename <- file.path(input_dir,SARA2505_20250727_050000(-0400) , "flac")
+
+flac_audio <- readAudio("D:/SARA2505_20250727_050000(-0400).flac")
+
+

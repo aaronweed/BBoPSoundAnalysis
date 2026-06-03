@@ -2,5 +2,8 @@ pandoc: '3.4'
 pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
-  BBoPSoundAnalysis-vignette: BBoPSoundAnalysis-vignette.html
-last_built: 2026-01-23T19:45Z
+  BBoPSoundAnalysis: BBoPSoundAnalysis.html
+last_built: 2026-06-03T14:21Z
+urls:
+  reference: https://aaronweed.github.io/BBoPSoundAnalysis/reference
+  article: https://aaronweed.github.io/BBoPSoundAnalysis/articles

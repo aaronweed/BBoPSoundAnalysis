@@ -1,14 +1,14 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
-<url><loc>/404.html</loc></url>
-<url><loc>/articles/BBoPSoundAnalysis-vignette.html</loc></url>
-<url><loc>/articles/index.html</loc></url>
-<url><loc>/authors.html</loc></url>
-<url><loc>/index.html</loc></url>
-<url><loc>/License.html</loc></url>
-<url><loc>/reference/CreateManifest.html</loc></url>
-<url><loc>/reference/index.html</loc></url>
-<url><loc>/reference/MakeSummaryTables.html</loc></url>
-<url><loc>/reference/SoundEnergyByMinute.html</loc></url>
-<url><loc>/reference/SoundEnergyByMinute.py.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/404.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/articles/BBoPSoundAnalysis-vignette.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/articles/index.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/authors.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/index.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/License.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/reference/CreateManifest.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/reference/index.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/reference/MakeSummaryTables.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/reference/SoundEnergyByMinute.html</loc></url>
+<url><loc>https://aaronweed.github.io/BBoPSoundAnalysis/reference/SoundEnergyByMinute.py.html</loc></url>
 </urlset>
 
